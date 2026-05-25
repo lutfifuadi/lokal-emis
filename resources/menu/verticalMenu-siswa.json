@@ -1,0 +1,25 @@
+{
+  "menu": [
+    {
+      "name": "Dashboard",
+      "icon": "menu-icon icon-base ti tabler-smart-home",
+      "url": "/siswa",
+      "slug": "siswa.dashboard"
+    },
+    {
+      "menuHeader": "Self-Service"
+    },
+    {
+      "name": "Biodata Profil",
+      "icon": "menu-icon icon-base ti tabler-id-badge",
+      "url": "/siswa/profil",
+      "slug": "siswa.profil"
+    },
+    {
+      "name": "Ajukan Perubahan",
+      "icon": "menu-icon icon-base ti tabler-edit",
+      "url": "/siswa/perubahan",
+      "slug": "siswa.perubahan"
+    }
+  ]
+}

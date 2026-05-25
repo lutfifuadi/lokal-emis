@@ -1,0 +1,64 @@
+{
+  "menu": [
+    {
+      "name": "Dashboard",
+      "icon": "menu-icon icon-base ti tabler-smart-home",
+      "url": "/admin",
+      "slug": "admin.dashboard"
+    },
+    {
+      "menuHeader": "Master Data"
+    },
+    {
+      "name": "Sekolah",
+      "icon": "menu-icon icon-base ti tabler-school",
+      "url": "/admin/master/sekolah",
+      "slug": "admin.master.sekolah"
+    },
+    {
+      "name": "Jurusan",
+      "icon": "menu-icon icon-base ti tabler-git-branch",
+      "url": "/admin/master/jurusan",
+      "slug": "admin.master.jurusan"
+    },
+    {
+      "name": "Tahun Ajaran",
+      "icon": "menu-icon icon-base ti tabler-calendar-event",
+      "url": "/admin/master/tahun-ajaran",
+      "slug": "admin.master.tahun-ajaran"
+    },
+    {
+      "name": "Kelas",
+      "icon": "menu-icon icon-base ti tabler-door-enter",
+      "url": "/admin/master/kelas",
+      "slug": "admin.master.kelas"
+    },
+    {
+      "name": "Pengguna",
+      "icon": "menu-icon icon-base ti tabler-users",
+      "url": "/admin/master/users",
+      "slug": "admin.master.users"
+    },
+    {
+      "name": "Siswa",
+      "icon": "menu-icon icon-base ti tabler-user",
+      "url": "/admin/master/siswa",
+      "slug": "admin.master.siswa"
+    },
+    {
+      "menuHeader": "Pengaturan"
+    },
+    {
+      "name": "Mode Sekolah",
+      "icon": "menu-icon icon-base ti tabler-building-community",
+      "url": "/admin/master/setting-sekolah",
+      "slug": "admin.master.setting-sekolah"
+    },
+    {
+      "name": "Google Sheet",
+      "icon": "menu-icon icon-base ti tabler-brand-google-sheets",
+      "url": "/admin/master/google-sheet-settings",
+      "slug": "admin.master.google-sheet-settings.*"
+    }
+  ]
+}

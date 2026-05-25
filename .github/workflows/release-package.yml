@@ -1,0 +1,164 @@
+name: Create Ready-to-Use Release - SKL
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*' # Trigger on version tags (e.g., v1.0.0)
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  build-and-release:
+    name: Build & Package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Create .env file for build
+        run: cp .env.example .env
+
+      - name: Install NPM dependencies & Build
+        run: |
+          npm install --legacy-peer-deps
+          npm run build
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, dom, fileinfo, gd, zip
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: |
+          mkdir -p bootstrap/cache storage/framework/{sessions,views,cache/data} storage/logs
+          chmod -R 775 bootstrap/cache storage
+          composer install --no-dev --optimize-autoloader --no-interaction
+
+      - name: Create Ready-to-Use ZIP
+        run: |
+          # Create a temporary directory for the package
+          mkdir -p release_package
+          
+          # Sync all files except excluded ones
+          rsync -a . release_package/ \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'node_modules' \
+            --exclude 'release_package' \
+            --exclude '.env' \
+            --exclude 'storage/logs/*' \
+            --exclude 'storage/framework/sessions/*' \
+            --exclude 'storage/framework/views/*' \
+            --exclude 'storage/framework/cache/data/*' \
+            --exclude 'tests' \
+            --exclude '.editorconfig' \
+            --exclude '.eslintrc.json' \
+            --exclude '.prettierrc.json' \
+            --exclude 'package-lock.json' \
+            --exclude 'package.json' \
+            --exclude 'vite.config.js' \
+            --exclude 'phpunit.xml' \
+            --exclude 'composer.json' \
+            --exclude 'composer.lock'
+            
+          # Zip the package
+          cd release_package
+          zip -r ../aplikasi.zip .
+          cd ..
+
+      - name: Get Build Date
+        id: build_date
+        run: echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
+      - name: Generate Release Tag Name
+        id: tag_name
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=latest-build" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract Changelog for Current Version
+        id: extract_changelog
+        run: |
+          TAG="${{ steps.tag_name.outputs.tag }}"
+          VERSION="${TAG#v}"
+          # Extract content between the current version header and the next version header
+          # Using awk to handle the range more reliably
+          awk "/## \[$VERSION\]/{flag=1; print; next} /## \[/{flag=0} flag" docs/changelog.md > release_notes.md
+          
+          # If file is empty (tag doesn't match changelog), provide fallback
+          if [ ! -s release_notes.md ]; then
+            echo "Automated build for production." > release_notes.md
+            echo "- Includes \`public/build\` (Frontend Assets)" >> release_notes.md
+            echo "- Includes \`vendor\` (PHP Dependencies)" >> release_notes.md
+          fi
+          
+          echo "Date: ${{ steps.build_date.outputs.date }}" >> release_notes.md
+
+      - name: Create/Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag_name.outputs.tag }}
+          name: Release ${{ steps.tag_name.outputs.tag }}
+          body_path: release_notes.md
+          files: aplikasi.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================
+  # JOB 2: Hapus workflow runs lama, pertahankan 5 terbaru
+  # ============================================================
+  cleanup:
+    name: Cleanup Old Workflow Runs
+    runs-on: ubuntu-latest
+    needs: build-and-release
+    if: always()
+    permissions:
+      actions: write
+
+    steps:
+      - name: Hapus workflow runs lama (simpan 5 terbaru)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'release-package.yml',
+              per_page: 100,
+            });
+
+            // Sort descending by created_at (newest first)
+            const allRuns = data.workflow_runs.sort(
+              (a, b) => new Date(b.created_at) - new Date(a.created_at)
+            );
+
+            // Exclude current run, keep 4 most recent others (total 5 incl. current)
+            const otherRuns = allRuns.filter(run => run.id !== context.runId);
+            const runsToDelete = otherRuns.slice(4);
+
+            for (const run of runsToDelete) {
+              await github.rest.actions.deleteWorkflowRun({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: run.id,
+              });
+              console.log(`Deleted run: ${run.id} (${run.display_title})`);
+            }
+            console.log(`Kept: ${Math.min(4, otherRuns.length) + 1} runs, Deleted: ${runsToDelete.length} runs`);
