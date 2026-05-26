@@ -67,7 +67,22 @@ PHP_EXT_NEEDED=(pdo pdo_mysql mbstring xml curl bcmath json fileinfo sodium)
 for ext in "${PHP_EXT_NEEDED[@]}"; do
   php -m | grep -qi "^$ext$" || { warn "Ekstensi PHP '$ext' tidak terdeteksi."; }
 done
-info "PHP extensions OK"
+# ── Cek & Restore composer.json jika Hilang ──────────────────
+if [ ! -f composer.json ]; then
+  warn "composer.json tidak ditemukan! Membuat composer.json minimal untuk autoloading..."
+  cat > composer.json << 'EOF'
+{
+  "autoload": {
+    "psr-4": {
+      "App\\": "app/",
+      "Database\\Factories\\": "database/factories/",
+      "Database\\Seeders\\": "database/seeders/"
+    }
+  }
+}
+EOF
+  info "composer.json minimal berhasil dibuat."
+fi
 
 # ── 2. Setup .env ────────────────────────────────────────────
 step "2. Konfigurasi .env"

@@ -70,7 +70,6 @@ jobs:
             --exclude 'package.json' \
             --exclude 'vite.config.js' \
             --exclude 'phpunit.xml' \
-            --exclude 'composer.json' \
             --exclude 'composer.lock'
             
           # Zip the package
