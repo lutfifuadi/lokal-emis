@@ -350,18 +350,23 @@ class GoogleSheetService
     protected function normalizeEmptyValues(array $data, string $entity): array
     {
         $numericFields = match ($entity) {
-            'siswa' => ['jarak_tempuh', 'anak_ke', 'jml_saudara', 'sekolah_id', 'kelas_id'],
+            'siswa' => ['anak_ke', 'jml_saudara', 'sekolah_id', 'kelas_id'],
             default => [],
         };
 
         foreach ($numericFields as $field) {
-            if (isset($data[$field]) && $data[$field] === '') {
+            if (isset($data[$field]) && (!is_numeric($data[$field]) || $data[$field] === '')) {
                 $data[$field] = null;
             }
         }
 
-        if ($entity === 'siswa' && isset($data['tanggal_lahir']) && $data['tanggal_lahir'] === '') {
-            $data['tanggal_lahir'] = null;
+        if ($entity === 'siswa') {
+            if (isset($data['tanggal_lahir']) && $data['tanggal_lahir'] === '') {
+                $data['tanggal_lahir'] = null;
+            }
+            if (isset($data['jarak_tempuh']) && (!is_numeric($data['jarak_tempuh']) || $data['jarak_tempuh'] === '')) {
+                $data['jarak_tempuh'] = null;
+            }
         }
 
         return $data;
