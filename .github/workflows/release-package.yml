@@ -96,9 +96,10 @@ jobs:
         run: |
           TAG="${{ steps.tag_name.outputs.tag }}"
           VERSION="${TAG#v}"
-          # Extract content between the current version header and the next version header
-          # Using awk to handle the range more reliably
-          awk "/## \[$VERSION\]/{flag=1; print; next} /## \[/{flag=0} flag" docs/changelog.md > release_notes.md
+          # Extract changelog if file exists
+          if [ -f docs/changelog.md ]; then
+            awk "/## \[$VERSION\]/{flag=1; print; next} /## \[/{flag=0} flag" docs/changelog.md > release_notes.md
+          fi
           
           # If file is empty (tag doesn't match changelog), provide fallback
           if [ ! -s release_notes.md ]; then
