@@ -388,6 +388,10 @@ class GoogleSheetService
                     $data['sekolah_id'] = $sekolah?->id;
                 }
                 unset($data['npsn_sekolah'], $data['npsn_sekolah_asal']);
+
+                if (empty($data['sekolah_id']) && \App\Models\Setting::get('app_mode') === 'single') {
+                    $data['sekolah_id'] = \App\Models\Setting::get('default_sekolah_id');
+                }
                 break;
         }
 
