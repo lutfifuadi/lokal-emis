@@ -48,25 +48,22 @@ else
     warn "Composer tidak ditemukan, skip."
 fi
 
-# ── 3. Frontend Build ───────────────────────────────────────
-step "3. Build Frontend (jika perlu)"
+# ── 3. Frontend Assets ──────────────────────────────────────
+step "3. Frontend Assets (dari GitHub Release)"
 
 HAS_ASSETS=false
 [ -f public/build/manifest.json ] && HAS_ASSETS=true
 
-if command -v node >/dev/null 2>&1 && [ -f package.json ]; then
-    if [ ! -d node_modules ]; then
-        info "node_modules tidak ada, install dependencies..."
-        npm install --legacy-peer-deps
-    fi
-    info "Build frontend assets..."
-    npm run build
-    info "Frontend build selesai ✓"
-elif [ "$HAS_ASSETS" = true ]; then
-    info "public/build sudah ada, lewati build frontend."
+if [ "$HAS_ASSETS" = true ]; then
+    info "public/build sudah ada, lewati."
 else
-    warn "Node.js tidak tersedia dan public/build tidak ditemukan."
-    warn "Frontend mungkin tidak tampil sempurna."
+    REPO="lutfifuadi/lokal-emis"
+    info "Mendownload public/build dari release terbaru..."
+    curl -sL "https://github.com/$REPO/releases/latest/download/aplikasi.zip" -o /tmp/emis-assets.zip 2>/dev/null && \
+    unzip -o /tmp/emis-assets.zip "public/build/*" -d "$PROJECT_DIR" >/dev/null 2>&1 && \
+    rm -f /tmp/emis-assets.zip && \
+    info "Frontend assets dari release ✓" || \
+    warn "Gagal download assets. Jalankan 'npm run build' manual jika frontend rusak."
 fi
 
 # ── 4. Maintenance Mode ON ──────────────────────────────────
