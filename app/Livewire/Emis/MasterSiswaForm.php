@@ -194,7 +194,7 @@ class MasterSiswaForm extends Component
             'no_kk' => 'nullable|string|max:50',
             'nama_kepala_keluarga' => 'nullable|string|max:255',
             'transportasi' => 'nullable|string|max:100',
-            'jarak_tempuh' => 'nullable|numeric|min:0|max:999.99',
+            'jarak_tempuh' => 'nullable|string|max:100',
             'tinggi_badan' => 'nullable|integer|min:1|max:300',
             'berat_badan' => 'nullable|integer|min:1|max:300',
             'status' => 'required|in:aktif,lulus,pindah,keluar',

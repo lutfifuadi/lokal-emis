@@ -33,7 +33,6 @@ class Siswa extends Model
 
     protected $casts = [
         'tanggal_lahir' => 'date',
-        'jarak_tempuh' => 'decimal:2',
         'anak_ke' => 'integer',
         'jml_saudara' => 'integer',
     ];

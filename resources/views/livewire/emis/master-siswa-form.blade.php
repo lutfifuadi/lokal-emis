@@ -131,8 +131,8 @@
                 </div>
                 <div class="row">
                   <div class="col-md-6 mb-3">
-                    <label for="jarak_tempuh" class="form-label">Jarak Tempuh (km)</label>
-                    <input type="number" step="0.01" class="form-control @error('jarak_tempuh') is-invalid @enderror" id="jarak_tempuh" wire:model="jarak_tempuh" placeholder="0.00">
+                    <label for="jarak_tempuh" class="form-label">Jarak Tempuh</label>
+                    <input type="text" class="form-control @error('jarak_tempuh') is-invalid @enderror" id="jarak_tempuh" wire:model="jarak_tempuh" placeholder="cth: KURANG DARI 5 KM atau 3.5">
                     @error('jarak_tempuh') <div class="invalid-feedback">{{ $message }}</div> @enderror
                   </div>
                   <div class="col-md-6 mb-3">

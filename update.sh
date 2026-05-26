@@ -30,13 +30,24 @@ info "Project dir: $PROJECT_DIR"
 # ── 1. Git Pull ──────────────────────────────────────────────
 step "1. Tarik perubahan dari GitHub"
 
-if [ ! -d .git ]; then
-    error "Bukan repository git. Clone dulu: git clone <url> ."
-    exit 1
-fi
+REPO_URL="${GIT_REPO_URL:-}"
 
-git pull origin main
-info "Kode terbaru dari GitHub ✓"
+if [ ! -d .git ]; then
+    if [ -n "$REPO_URL" ]; then
+        info "Folder belum berupa git repo. Inisialisasi dan clone dari: $REPO_URL"
+        git init
+        git remote add origin "$REPO_URL"
+        git fetch origin main --depth=1
+        git reset --hard origin/main
+        info "Clone selesai ✓"
+    else
+        warn "Folder bukan repository git dan GIT_REPO_URL tidak diset."
+        warn "Lewati langkah git pull. Set variabel GIT_REPO_URL=<url> untuk mengaktifkan."
+    fi
+else
+    git pull origin main
+    info "Kode terbaru dari GitHub ✓"
+fi
 
 # ── 2. Composer Install ─────────────────────────────────────
 step "2. Update Dependencies PHP"
