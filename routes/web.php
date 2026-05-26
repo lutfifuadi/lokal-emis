@@ -175,6 +175,11 @@ use App\Http\Controllers\Admin\ImpersonateController;
 use App\Http\Controllers\Admin\MasterImportController;
 use App\Http\Controllers\Admin\GoogleSheetSettingController;
 
+// Maintenance Mode (Public)
+Route::get('/maintenance', function () {
+    return view('content.pages.pages-misc-under-maintenance');
+})->name('maintenance');
+
 // Auth Routes (Public)
 Route::get('/login', [LoginBasic::class, 'index'])->name('login');
 Route::post('/login', [LoginBasic::class, 'login'])->middleware('throttle:6,1')->name('login.post');
@@ -214,6 +219,10 @@ Route::middleware(['auth', 'role:Super Admin|Dinas|Operator'])
             // Setting Mode Sekolah
             Route::get('/setting-sekolah', [\App\Http\Controllers\Admin\SettingSekolahController::class, 'index'])->name('setting-sekolah');
             Route::post('/setting-sekolah', [\App\Http\Controllers\Admin\SettingSekolahController::class, 'update'])->name('setting-sekolah.update');
+
+            // Setting Maintenance Mode
+            Route::get('/setting-maintenance', [\App\Http\Controllers\Admin\SettingMaintenanceController::class, 'index'])->name('setting-maintenance');
+            Route::post('/setting-maintenance', [\App\Http\Controllers\Admin\SettingMaintenanceController::class, 'update'])->name('setting-maintenance.update');
 
             // Google Sheet Integration routes
             Route::prefix('google-sheet-settings')->name('google-sheet-settings.')->group(function () {

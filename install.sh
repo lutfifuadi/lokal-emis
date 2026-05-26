@@ -3,7 +3,7 @@ set -e
 
 # ============================================================
 #  install.sh — Auto Installer Aplikasi Lokal EMIS
-#  Vuexy 3.0 + Laravel 12 + MySQL + Sanctum + Spatie
+#  Dual Mode: Release (dari GitHub Actions) / Dev (clone repo)
 # ============================================================
 
 BOLD='\033[1m'
@@ -23,6 +23,18 @@ cd "$PROJECT_DIR"
 info "Project dir: $PROJECT_DIR"
 info "OS: $(uname -s)"
 
+# ── Deteksi Mode ─────────────────────────────────────────────
+if [ -f vendor/autoload.php ] && [ -f public/build/manifest.json ]; then
+  MODE="release"
+  info "Mode: ${GREEN}RELEASE${NC} (dari GitHub Actions — build sudah include)"
+elif [ -f vendor/autoload.php ]; then
+  MODE="release"
+  info "Mode: ${GREEN}RELEASE${NC} (vendor & public/build sudah ada)"
+else
+  MODE="dev"
+  info "Mode: ${YELLOW}DEV${NC} (clone repo — perlu install dependencies)"
+fi
+
 # ── 1. Cek Requirements ──────────────────────────────────────
 step "1. Memeriksa Requirements"
 
@@ -33,23 +45,27 @@ info "PHP $PHP_VER ✓"
 command -v composer >/dev/null 2>&1 || { error "Composer tidak ditemukan."; exit 1; }
 info "Composer ✓"
 
-command -v node >/dev/null 2>&1 || { error "Node.js tidak ditemukan."; exit 1; }
-info "Node.js $(node -v) ✓"
+if [ "$MODE" = "dev" ]; then
+  command -v node >/dev/null 2>&1 || { error "Node.js tidak ditemukan."; exit 1; }
+  info "Node.js $(node -v) ✓"
 
-if command -v yarn >/dev/null 2>&1; then
+  if command -v yarn >/dev/null 2>&1; then
     PKG_MGR="yarn"
     info "Yarn ✓"
-elif command -v npm >/dev/null 2>&1; then
+  elif command -v npm >/dev/null 2>&1; then
     PKG_MGR="npm"
     warn "Yarn tidak ditemukan, pakai npm sebagai fallback."
-else
+  else
     error "Yarn atau npm tidak ditemukan."
     exit 1
+  fi
+else
+  info "Node.js — skip (build sudah include di release)"
 fi
 
 PHP_EXT_NEEDED=(pdo pdo_mysql mbstring xml curl bcmath json fileinfo sodium)
 for ext in "${PHP_EXT_NEEDED[@]}"; do
-    php -m | grep -qi "^$ext$" || { warn "Ekstensi PHP '$ext' tidak terdeteksi."; }
+  php -m | grep -qi "^$ext$" || { warn "Ekstensi PHP '$ext' tidak terdeteksi."; }
 done
 info "PHP extensions OK"
 
@@ -57,11 +73,11 @@ info "PHP extensions OK"
 step "2. Konfigurasi .env"
 
 if [ ! -f .env ]; then
-    [ -f .env.example ] || { error ".env.example tidak ditemukan!"; exit 1; }
-    cp .env.example .env
-    info ".env dibuat dari .env.example"
+  [ -f .env.example ] || { error ".env.example tidak ditemukan!"; exit 1; }
+  cp .env.example .env
+  info ".env dibuat dari .env.example"
 else
-    warn ".env sudah ada, dilewati."
+  warn ".env sudah ada, dilewati."
 fi
 
 sed -i "s/^APP_NAME=.*/APP_NAME=\"Aplikasi Lokal EMIS\"/" .env
@@ -88,90 +104,80 @@ echo ""
 DB_PASS="${DB_PASS_INPUT:-emis_mansaba2026}"
 
 sed -i "s/^DB_CONNECTION=.*/DB_CONNECTION=mysql/" .env
-sed -i "s/^# DB_HOST=.*/DB_HOST=$DB_HOST/" .env
-sed -i "s/^# DB_PORT=.*/DB_PORT=$DB_PORT/" .env
-sed -i "s/^# DB_DATABASE=.*/DB_DATABASE=$DB_NAME/" .env
-sed -i "s/^# DB_USERNAME=.*/DB_USERNAME=$DB_USER/" .env
-sed -i "s/^# DB_PASSWORD=.*/DB_PASSWORD=$DB_PASS/" .env
-sed -i "s/^# DB_HOST=/DB_HOST=/" .env
-sed -i "s/^# DB_PORT=/DB_PORT=/" .env
-sed -i "s/^# DB_DATABASE=/DB_DATABASE=/" .env
-sed -i "s/^# DB_USERNAME=/DB_USERNAME=/" .env
-sed -i "s/^# DB_PASSWORD=/DB_PASSWORD=/" .env
+for key in DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD; do
+  sed -i "s/^# ${key}=.*//" .env
+done
+sed -i "s/^DB_HOST=.*/DB_HOST=${DB_HOST}/" .env
+sed -i "s/^DB_PORT=.*/DB_PORT=${DB_PORT}/" .env
+sed -i "s/^DB_DATABASE=.*/DB_DATABASE=${DB_NAME}/" .env
+sed -i "s/^DB_USERNAME=.*/DB_USERNAME=${DB_USER}/" .env
+sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=${DB_PASS}/" .env
 
-info "Database → mysql://$DB_USER@$DB_HOST:$DB_PORT/$DB_NAME"
+info "Database → mysql://${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 
-# ── 3. Composer Install ─────────────────────────────────────
-step "3. Install Dependencies PHP"
-
-if [ ! -d vendor ]; then
+# ── 3. Install Dependencies PHP ─────────────────────────────
+if [ "$MODE" = "dev" ]; then
+  step "3. Install Dependencies PHP"
+  if [ ! -d vendor ]; then
     composer install --no-interaction --prefer-dist
-else
+  else
     composer update --no-interaction --prefer-dist
-fi
-info "Composer selesai"
-
-# ── 4. Install Sanctum ───────────────────────────────────────
-step "4. Install Laravel Sanctum"
-
-if ! composer show laravel/sanctum >/dev/null 2>&1; then
-    composer require laravel/sanctum --no-interaction
-    info "Sanctum added to composer"
+  fi
+  info "Composer selesai"
+else
+  info "Step 3 — skip (vendor sudah include di release)"
 fi
 
-# Install sanctum (non-interactive)
+# ── 4. Publish Sanctum ───────────────────────────────────────
+step "4. Publish Sanctum"
 php artisan install:api --no-interaction 2>/dev/null || {
-    # Manual fallback
-    php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider" --force 2>/dev/null || true
+  php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider" --force 2>/dev/null || true
 }
-info "Sanctum terinstall"
+info "Sanctum siap"
 
-# ── 5. Install Spatie Permission ────────────────────────────
-step "5. Install Spatie Permission"
+# ── 5. Publish Spatie Permission ────────────────────────────
+step "5. Publish Spatie Permission"
+php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider" --force 2>/dev/null || true
+info "Spatie Permission siap"
 
-if ! composer show spatie/laravel-permission >/dev/null 2>&1; then
-    composer require spatie/laravel-permission --no-interaction
-    info "Spatie added to composer"
+# ── 6. Optimize Autoloader (release) / Patch User Model (dev) ─
+if [ "$MODE" = "dev" ]; then
+  step "6. Update User Model (HasApiTokens + HasRoles)"
+  php -r "
+  \$file = '$PROJECT_DIR/app/Models/User.php';
+  \$content = file_get_contents(\$file);
+
+  if (strpos(\$content, 'use Laravel\\\\Sanctum\\\\HasApiTokens;') === false) {
+    \$content = str_replace(
+      'use Illuminate\\\\Foundation\\\\Auth\\\\User as Authenticatable;',
+      \"use Illuminate\\\\Foundation\\\\Auth\\\\User as Authenticatable;\\nuse Laravel\\\\Sanctum\\\\HasApiTokens;\\nuse Spatie\\\\Permission\\\\Traits\\\\HasRoles;\",
+      \$content
+    );
+  }
+
+  if (strpos(\$content, 'HasApiTokens, HasRoles, HasFactory') === false) {
+    \$content = str_replace(
+      'use HasFactory, Notifiable;',
+      'use HasApiTokens, HasRoles, HasFactory, Notifiable;',
+      \$content
+    );
+  }
+
+  file_put_contents(\$file, \$content);
+  echo \"User.php updated OK\\n\";
+  "
+  info "User model → HasApiTokens + HasRoles"
+else
+  step "6. Optimize Autoloader"
+  composer dump-autoload --optimize --no-interaction 2>/dev/null || true
+  info "Autoloader optimized"
 fi
 
-php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider" --force 2>/dev/null || true
-info "Spatie Permission terinstall"
+# ── 7. Setup API Routes & Middleware ──────────────────────────
+if [ "$MODE" = "dev" ]; then
+  step "7. Setup API Routes & Middleware"
 
-# ── 6. Patch User Model ─────────────────────────────────────
-step "6. Update User Model (HasApiTokens + HasRoles)"
-
-php -r "
-\$file = '$PROJECT_DIR/app/Models/User.php';
-\$content = file_get_contents(\$file);
-
-// Add trait imports
-if (strpos(\$content, 'use Laravel\\\\Sanctum\\\\HasApiTokens;') === false) {
-    \$content = str_replace(
-        'use Illuminate\\\\Foundation\\\\Auth\\\\User as Authenticatable;',
-        \"use Illuminate\\\\Foundation\\\\Auth\\\\User as Authenticatable;\\nuse Laravel\\\\Sanctum\\\\HasApiTokens;\\nuse Spatie\\\\Permission\\\\Traits\\\\HasRoles;\",
-        \$content
-    );
-}
-
-// Add trait usage
-if (strpos(\$content, 'HasApiTokens, HasRoles, HasFactory') === false) {
-    \$content = str_replace(
-        'use HasFactory, Notifiable;',
-        'use HasApiTokens, HasRoles, HasFactory, Notifiable;',
-        \$content
-    );
-}
-
-file_put_contents(\$file, \$content);
-echo \"User.php updated OK\\n\";
-"
-info "User model → HasApiTokens + HasRoles"
-
-# ── 7. Add API Routes ───────────────────────────────────────
-step "7. Setup API Routes & Middleware"
-
-# Create api.php jika belum ada
-if [ ! -f routes/api.php ]; then
+  if [ ! -f routes/api.php ]; then
     cat > routes/api.php << 'PHPEOF'
 <?php
 
@@ -183,68 +189,73 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 PHPEOF
     info "routes/api.php dibuat"
-fi
+  fi
 
-# Patch bootstrap/app.php: add api routing + Spatie middleware
-php -r "
-\$file = '$PROJECT_DIR/bootstrap/app.php';
-\$content = file_get_contents(\$file);
+  php -r "
+  \$file = '$PROJECT_DIR/bootstrap/app.php';
+  \$content = file_get_contents(\$file);
 
-// Add api routing
-if (strpos(\$content, \"'api'\") === false) {
+  if (strpos(\$content, \"'api'\") === false) {
     \$content = str_replace(
-        \"web: __DIR__ . '/../routes/web.php',\",
-        \"web: __DIR__ . '/../routes/web.php',\\n        api: __DIR__ . '/../routes/api.php',\",
-        \$content
+      \"web: __DIR__ . '/../routes/web.php',\",
+      \"web: __DIR__ . '/../routes/web.php',\\n        api: __DIR__ . '/../routes/api.php',\",
+      \$content
     );
-}
+  }
 
-// Add Spatie middleware aliases
-if (strpos(\$content, 'Spatie\\\\Permission\\\\Middleware') === false) {
+  if (strpos(\$content, 'Spatie\\\\Permission\\\\Middleware') === false) {
     \$search = \"->withMiddleware(function (Middleware \\\$middleware) {\";
     \$replace = \$search . \"\\n\\t\\t\\\$middleware->alias([\\n\\t\\t\\t'role' => \\\\Spatie\\\\Permission\\\\Middleware\\\\RoleMiddleware::class,\\n\\t\\t\\t'permission' => \\\\Spatie\\\\Permission\\\\Middleware\\\\PermissionMiddleware::class,\\n\\t\\t\\t'role_or_permission' => \\\\Spatie\\\\Permission\\\\Middleware\\\\RoleOrPermissionMiddleware::class,\\n\\t\\t]);\";
     \$content = str_replace(\$search, \$replace, \$content);
-}
+  }
 
-file_put_contents(\$file, \$content);
-echo \"bootstrap/app.php updated OK\\n\";
-"
-info "API routes + Spatie middleware siap"
+  file_put_contents(\$file, \$content);
+  echo \"bootstrap/app.php updated OK\\n\";
+  "
+  info "API routes + Spatie middleware siap"
+else
+  info "Step 7 — skip (sudah include di release)"
+fi
 
 # ── 8. Generate App Key ──────────────────────────────────────
 step "8. Generate Application Key"
 
-if grep -q "APP_KEY=$" .env || grep -q "APP_KEY=$" .env; then
-    php artisan key:generate --force
-    info "APP_KEY generated"
+if grep -q "APP_KEY=$" .env 2>/dev/null; then
+  php artisan key:generate --force
+  info "APP_KEY generated"
 else
-    info "APP_KEY sudah ada"
+  info "APP_KEY sudah ada"
 fi
 
 # ── 9. Storage Link ──────────────────────────────────────────
 step "9. Storage Link"
-
 php artisan storage:link --force 2>/dev/null || true
 info "Storage link siap"
 
 # ── 10. Frontend Dependencies ───────────────────────────────
-step "10. Install Frontend Dependencies"
-
-if [ "$PKG_MGR" = "yarn" ]; then
+if [ "$MODE" = "dev" ]; then
+  step "10. Install Frontend Dependencies"
+  if [ "$PKG_MGR" = "yarn" ]; then
     [ ! -d node_modules ] && yarn install --frozen-lockfile || warn "node_modules sudah ada"
-else
+  else
     [ ! -d node_modules ] && npm install || warn "node_modules sudah ada"
+  fi
+else
+  info "Step 10 — skip (node_modules tidak perlu di release)"
 fi
 
 # ── 11. Build Frontend ──────────────────────────────────────
-step "11. Build Frontend Assets"
-
-if [ "$PKG_MGR" = "yarn" ]; then
+if [ "$MODE" = "dev" ]; then
+  step "11. Build Frontend Assets"
+  if [ "$PKG_MGR" = "yarn" ]; then
     yarn build
-else
+  else
     npm run build
+  fi
+  info "Frontend build selesai"
+else
+  info "Step 11 — skip (frontend sudah di-build di GitHub Actions)"
 fi
-info "Frontend build selesai"
 
 # ── 12. Migrate Database ───────────────────────────────────
 step "12. Migrate Database"
@@ -258,18 +269,18 @@ read -p "Pilihan [2]: " DB_ACTION
 DB_ACTION="${DB_ACTION:-2}"
 
 case $DB_ACTION in
-    1) php artisan migrate --force; info "Migrasi selesai" ;;
-    2)
-        warn "SEMUA DATA DI DATABASE $DB_NAME AKAN DIHAPUS!"
-        read -p "Ketik 'fresh' untuk lanjut: " CONFIRM
-        if [ "$CONFIRM" = "fresh" ]; then
-            php artisan migrate:fresh --force --seed
-            info "Migrate:fresh + seed selesai"
-        else
-            warn "Dibatalkan."
-        fi
-        ;;
-    3) warn "Migration dilewati." ;;
+  1) php artisan migrate --force; info "Migrasi selesai" ;;
+  2)
+    warn "SEMUA DATA DI DATABASE $DB_NAME AKAN DIHAPUS!"
+    read -p "Ketik 'fresh' untuk lanjut: " CONFIRM
+    if [ "$CONFIRM" = "fresh" ]; then
+      php artisan migrate:fresh --force --seed
+      info "Migrate:fresh + seed selesai"
+    else
+      warn "Dibatalkan."
+    fi
+    ;;
+  3) warn "Migration dilewati." ;;
 esac
 
 # ── 13. Seed Roles Default ─────────────────────────────────
@@ -277,24 +288,23 @@ step "13. Seed Role & Permission Default"
 
 php artisan tinker --execute="
 if (!class_exists('Spatie\Permission\Models\Role')) {
-    echo 'Spatie belum terinstall, skip seeding roles.\n';
-    exit;
+  echo 'Spatie belum terinstall, skip seeding roles.\n';
+  exit;
 }
 
 \$roles = ['Super Admin', 'Dinas', 'Operator', 'Guru', 'Kepala Sekolah', 'Siswa', 'Orang Tua'];
 foreach (\$roles as \$role) {
-    try { \\Spatie\\Permission\\Models\\Role::findOrCreate(\$role); } catch (\$e) {}
+  try { \Spatie\Permission\Models\Role::findOrCreate(\$role); } catch (\$e) {}
 }
 
-// Buat user Super Admin default
-if (\\App\\Models\\User::count() == 0) {
-    \$user = \\App\\Models\\User::create([
-        'name' => 'Super Admin',
-        'email' => 'admin@emis.local',
-        'password' => bcrypt('password'),
-    ]);
-    \$user->assignRole('Super Admin');
-    echo 'User Super Admin: admin@emis.local / password\n';
+if (\App\Models\User::count() == 0) {
+  \$user = \App\Models\User::create([
+    'name' => 'Super Admin',
+    'email' => 'admin@emis.local',
+    'password' => bcrypt('password'),
+  ]);
+  \$user->assignRole('Super Admin');
+  echo 'User Super Admin: admin@emis.local / password\n';
 }
 
 echo count(\$roles) . ' roles created OK\n';
@@ -302,7 +312,6 @@ echo count(\$roles) . ' roles created OK\n';
 
 # ── 14. Optimize ────────────────────────────────────────────
 step "14. Optimize"
-
 php artisan optimize:clear 2>/dev/null || true
 info "Cache cleared"
 
@@ -320,7 +329,9 @@ echo "  Login Super Admin:"
 echo "    Email:    admin@emis.local"
 echo "    Password: password"
 echo ""
-echo "  Development hot-reload: yarn dev"
+if [ "$MODE" = "dev" ]; then
+  echo "  Development hot-reload: yarn dev"
+fi
 echo "  Reset data:             bash reset.sh"
 echo ""
 
