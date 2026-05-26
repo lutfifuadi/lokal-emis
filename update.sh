@@ -27,9 +27,6 @@ fi
 
 info "Project dir: $PROJECT_DIR"
 
-# Load GITHUB_TOKEN dari .env jika ada
-[ -f .env ] && GITHUB_TOKEN="${GITHUB_TOKEN:-$(grep -oP '^GITHUB_TOKEN=\K.*' .env 2>/dev/null || true)}"
-
 # ── 1. Git Pull ──────────────────────────────────────────────
 step "1. Tarik perubahan dari GitHub"
 
@@ -58,41 +55,20 @@ if [ -f public/build/manifest.json ]; then
     info "public/build sudah ada, lewati."
 else
     REPO="lutfifuadi/lokal-emis"
-    GH_TOKEN="${GITHUB_TOKEN:-}"
+    info "Download frontend assets dari release terbaru..."
+    curl -sL "https://github.com/$REPO/releases/latest/download/aplikasi.zip" \
+        -o /tmp/emis-assets.zip 2>/dev/null || true
 
-    if [ -z "$GH_TOKEN" ] && command -v gh >/dev/null 2>&1; then
-        GH_TOKEN=$(gh auth token 2>/dev/null || true)
-    fi
-
-    if [ -n "$GH_TOKEN" ]; then
-        info "Download assets dari GitHub Release..."
-        curl -sL -H "Authorization: Bearer $GH_TOKEN" \
-            "https://api.github.com/repos/$REPO/releases/latest" \
-            -o /tmp/emis-release.json 2>/dev/null || true
-
-        ZIP_URL=$(php -r '$d = json_decode(file_get_contents("/tmp/emis-release.json"), true); foreach($d["assets"] ?? [] as $a) { if(str_ends_with($a["name"], "aplikasi.zip")) { echo $a["url"]; break; } }' 2>/dev/null || true)
-
-        if [ -n "$ZIP_URL" ]; then
-            curl -sL -H "Authorization: Bearer $GH_TOKEN" \
-                -H "Accept: application/octet-stream" \
-                "$ZIP_URL" -o /tmp/emis-assets.zip 2>/dev/null || true
-
-            unzip -o /tmp/emis-assets.zip "public/build/*" -d "$PROJECT_DIR" >/dev/null 2>&1 || true
-            rm -f /tmp/emis-assets.zip /tmp/emis-release.json
-
-            if [ -f public/build/manifest.json ]; then
-                info "Frontend assets dari release ✓"
-            else
-                warn "Gagal extract assets dari release."
-            fi
+    if [ -f /tmp/emis-assets.zip ]; then
+        unzip -o /tmp/emis-assets.zip "public/build/*" -d "$PROJECT_DIR" >/dev/null 2>&1 || true
+        rm -f /tmp/emis-assets.zip
+        if [ -f public/build/manifest.json ]; then
+            info "Frontend assets dari release ✓"
         else
-            rm -f /tmp/emis-release.json
-            warn "Gagal download release. Jalankan 'npm run build' manual jika frontend rusak."
+            warn "public/build tidak ditemukan dalam release. Jalankan 'npm run build' manual."
         fi
     else
-        warn "GITHUB_TOKEN tidak tersedia. public/build tidak ada."
-        warn "Jalankan manual: npm install --legacy-peer-deps && npm run build"
-        warn "Atau set GITHUB_TOKEN di .env lalu jalankan ulang update.sh"
+        warn "Gagal download release. Pastikan release 'latest-build' sudah ada."
     fi
 fi
 
