@@ -1,0 +1,121 @@
+name: Auto Deploy ke Live Server
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, dom, fileinfo, gd, zip
+          coverage: none
+
+      - name: Build dependencies
+        run: |
+          cp .env.example .env
+          npm install --legacy-peer-deps
+          npm run build
+          mkdir -p bootstrap/cache storage/framework/{sessions,views,cache/data} storage/logs
+          chmod -R 775 bootstrap/cache storage
+          composer install --no-dev --optimize-autoloader --no-interaction
+
+      - name: Package aplikasi
+        run: |
+          rsync -a . deploy_package/ \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'node_modules' \
+            --exclude 'deploy_package' \
+            --exclude '.env' \
+            --exclude 'storage/logs/*' \
+            --exclude 'storage/framework/sessions/*' \
+            --exclude 'storage/framework/views/*' \
+            --exclude 'storage/framework/cache/data/*' \
+            --exclude 'tests' \
+            --exclude '.editorconfig' \
+            --exclude '.eslintrc.json' \
+            --exclude '.prettierrc.json' \
+            --exclude 'phpunit.xml'
+
+          cd deploy_package
+          tar czf ../deploy.tar.gz .
+          cd ..
+          ls -lh deploy.tar.gz
+
+      - name: Upload package ke server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || '22' }}
+          source: "deploy.tar.gz"
+          target: /tmp
+          overwrite: true
+
+      - name: Deploy di server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || '22' }}
+          script: |
+            set -e
+            DIR="${{ secrets.DEPLOY_PATH }}"
+            TMPDIR="/tmp/emis-$(date +%s)"
+
+            echo "=== Ekstrak ke temporary ==="
+            mkdir -p "$TMPDIR"
+            tar xzf /tmp/deploy.tar.gz -C "$TMPDIR"
+
+            echo "=== Maintenance mode ON ==="
+            php "$DIR/artisan" down --retry=30 2>/dev/null || true
+
+            echo "=== Backup .env ==="
+            cp "$DIR/.env" "$TMPDIR/.env" 2>/dev/null || echo "⚠️  .env sebelumnya tidak ada"
+
+            echo "=== Sync file baru (storage tidak disentuh) ==="
+            rsync -a --delete "$TMPDIR/" "$DIR/" --exclude 'storage'
+
+            echo "=== Setup storage & permission ==="
+            mkdir -p "$DIR/storage/framework/sessions"
+            mkdir -p "$DIR/storage/framework/views"
+            mkdir -p "$DIR/storage/framework/cache"
+            mkdir -p "$DIR/storage/logs"
+            chmod -R 775 "$DIR/storage" "$DIR/bootstrap/cache"
+
+            echo "=== Migrasi database ==="
+            php "$DIR/artisan" migrate --force
+
+            echo "=== Optimasi ==="
+            php "$DIR/artisan" optimize:clear
+            php "$DIR/artisan" config:cache
+            php "$DIR/artisan" route:cache
+            php "$DIR/artisan" view:cache
+
+            echo "=== Maintenance mode OFF ==="
+            php "$DIR/artisan" up
+
+            echo "=== Bersihkan ==="
+            rm -rf "$TMPDIR" /tmp/deploy.tar.gz
+
+            echo "✅ Deploy selesai: $(date)"
