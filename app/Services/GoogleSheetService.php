@@ -230,7 +230,7 @@ class GoogleSheetService
                     $dbData['user_id'] = $user->id;
                     $dbData['sekolah_id'] = $sekolahId;
 
-                    unset($dbData['email'], $dbData['password']);
+                    unset($dbData['password']);
                 }
 
                 $uniqueKey = $this->getUniqueKey($entity, $dbData);
@@ -350,7 +350,7 @@ class GoogleSheetService
     protected function normalizeEmptyValues(array $data, string $entity): array
     {
         $numericFields = match ($entity) {
-            'siswa' => ['anak_ke', 'jml_saudara', 'sekolah_id', 'kelas_id'],
+            'siswa' => ['anak_ke', 'jml_saudara', 'bulan_lahir', 'tahun_lahir', 'sekolah_id', 'kelas_id'],
             default => [],
         };
 
@@ -361,8 +361,10 @@ class GoogleSheetService
         }
 
         if ($entity === 'siswa') {
-            if (isset($data['tanggal_lahir']) && $data['tanggal_lahir'] === '') {
-                $data['tanggal_lahir'] = null;
+            foreach (['tanggal_lahir', 'tanggal_lahir_ayah', 'tanggal_lahir_ibu', 'tanggal_lahir_wali'] as $dateField) {
+                if (isset($data[$dateField]) && $data[$dateField] === '') {
+                    $data[$dateField] = null;
+                }
             }
             if (isset($data['jarak_tempuh']) && (!is_numeric($data['jarak_tempuh']) || $data['jarak_tempuh'] === '')) {
                 $data['jarak_tempuh'] = null;

@@ -46,6 +46,10 @@ class MasterSiswaForm extends Component
         if ($siswaId) {
             $this->isEdit = true;
             $siswa = Siswa::with('user')->findOrFail($siswaId);
+
+            if ($this->userSekolahId && $siswa->sekolah_id !== $this->userSekolahId) {
+                abort(403, 'Anda tidak memiliki akses untuk mengedit siswa ini.');
+            }
             $this->siswaId = $siswa->id;
             $this->userId = $siswa->user_id;
             $this->sekolah_id = $siswa->sekolah_id;

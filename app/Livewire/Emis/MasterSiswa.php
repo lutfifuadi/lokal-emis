@@ -56,6 +56,11 @@ class MasterSiswa extends Component
     public function delete($id)
     {
         $siswa = Siswa::findOrFail($id);
+
+        if ($this->userSekolahId && $siswa->sekolah_id !== $this->userSekolahId) {
+            abort(403, 'Anda tidak memiliki akses untuk menghapus siswa ini.');
+        }
+
         User::find($siswa->user_id)->delete();
         session()->flash('message', 'Siswa berhasil dihapus.');
     }

@@ -1,192 +1,224 @@
+@php
+  $configData = Helper::appClasses();
+@endphp
+
 @extends('layouts/layoutMaster')
 
-@section('title', 'Dashboard Sekolah EMIS')
+@section('title', 'Dashboard Sekolah — EMIS')
+
+@section('page-style')
+  @include('admin._emis-styles')
+@endsection
 
 @section('content')
-<div class="row g-6 mb-6">
-  <!-- Welcome Card -->
-  <div class="col-md-12">
-    <div class="card bg-label-primary border-0 shadow-sm">
-      <div class="card-body d-flex align-items-center justify-content-between p-6">
-        <div>
-          <h4 class="text-primary mb-1">Selamat datang kembali, {{ auth()->user()->name }}! 🎉</h4>
-          <p class="mb-2">Aplikasi Lokal EMIS siap membantu Anda mengelola data pendidikan dengan cepat dan akurat.</p>
-          <div class="d-flex gap-2 align-items-center mt-3">
-            <span class="badge bg-primary px-3 py-2 fs-7">Role: {{ auth()->user()->roles->pluck('name')->implode(', ') }}</span>
-            @if(auth()->user()->sekolah)
-              <span class="badge bg-label-secondary px-3 py-2 fs-7">
-                <i class="icon-base ti tabler-school me-1"></i> {{ auth()->user()->sekolah->nama }}
-              </span>
-            @endif
+
+  {{-- ============================================ --}}
+  {{-- PAGE HEADER                                 --}}
+  {{-- ============================================ --}}
+  <div class="emis-page-header emis-fade-up mb-6">
+    <div class="emis-page-header-content">
+      <h1><i class="ti tabler-layout-dashboard me-2" style="font-size:1.3rem;vertical-align:middle;opacity:.8;"></i>Dashboard Sekolah</h1>
+      <p>Selamat datang kembali, {{ auth()->user()->name }} — Ringkasan data madrasah hari ini</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center" style="position:relative;z-index:1;">
+      <span class="emis-chip stat-glass"><i class="ti tabler-shield"></i> {{ auth()->user()->roles->pluck('name')->implode(', ') }}</span>
+      @if(auth()->user()->sekolah)
+        <span class="emis-chip stat-glass"><i class="ti tabler-school"></i> {{ auth()->user()->sekolah->nama }}</span>
+      @endif
+    </div>
+  </div>
+
+  {{-- ============================================ --}}
+  {{-- ROW 1: Stat Cards                           --}}
+  {{-- ============================================ --}}
+  <p class="emis-section-label emis-fade-up delay-1">Metrik Utama</p>
+
+  <div class="row g-4 mb-5">
+
+    {{-- Total Siswa --}}
+    <div class="col-sm-6 col-xl-3">
+      <div class="card emis-stat-card stat-card-navy h-100 emis-fade-up delay-2">
+        <div class="card-body" style="padding: 1.5rem !important; position:relative; z-index:1;">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="emis-stat-icon">
+              <i class="ti tabler-user-check"></i>
+            </div>
+            <span class="emis-chip stat-glass">Siswa</span>
+          </div>
+          <div class="emis-stat-number">{{ number_format($stats['total_siswa']) }}</div>
+          <div class="emis-stat-label">Total Siswa</div>
+          <div class="emis-stat-sub">Terdaftar aktif di sistem</div>
+        </div>
+      </div>
+    </div>
+
+    {{-- Total Guru --}}
+    <div class="col-sm-6 col-xl-3">
+      <div class="card emis-stat-card stat-card-emerald h-100 emis-fade-up delay-3">
+        <div class="card-body" style="padding: 1.5rem !important; position:relative; z-index:1;">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="emis-stat-icon">
+              <i class="ti tabler-users"></i>
+            </div>
+            <span class="emis-chip stat-glass">Pengajar</span>
+          </div>
+          <div class="emis-stat-number">{{ number_format($stats['total_guru']) }}</div>
+          <div class="emis-stat-label">Total Guru</div>
+          <div class="emis-stat-sub">Tenaga pengajar aktif</div>
+        </div>
+      </div>
+    </div>
+
+    {{-- Total Sekolah --}}
+    <div class="col-sm-6 col-xl-3">
+      <div class="card emis-stat-card stat-card-sky h-100 emis-fade-up delay-4">
+        <div class="card-body" style="padding: 1.5rem !important; position:relative; z-index:1;">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="emis-stat-icon">
+              <i class="ti tabler-building-bank"></i>
+            </div>
+            <span class="emis-chip stat-glass">Sekolah</span>
+          </div>
+          <div class="emis-stat-number">{{ number_format($stats['total_sekolah']) }}</div>
+          <div class="emis-stat-label">Total Sekolah</div>
+          <div class="emis-stat-sub">Madrasah terdaftar</div>
+        </div>
+      </div>
+    </div>
+
+    {{-- Total Kelas --}}
+    <div class="col-sm-6 col-xl-3">
+      <div class="card emis-stat-card stat-card-rose h-100 emis-fade-up delay-5">
+        <div class="card-body" style="padding: 1.5rem !important; position:relative; z-index:1;">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="emis-stat-icon">
+              <i class="ti tabler-door-enter"></i>
+            </div>
+            <span class="emis-chip stat-glass">Kelas</span>
+          </div>
+          <div class="emis-stat-number">{{ number_format($stats['total_kelas']) }}</div>
+          <div class="emis-stat-label">Total Kelas</div>
+          <div class="emis-stat-sub">Rombongan belajar aktif</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {{-- ============================================ --}}
+  {{-- ROW 2: Content + School Detail              --}}
+  {{-- ============================================ --}}
+  <div class="row g-4 mb-5">
+
+    {{-- Left: Approval Queue --}}
+    <div class="col-md-8">
+      <div class="card h-100 emis-fade-up delay-6">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div>
+            <h5 class="emis-card-title"><i class="ti tabler-checklist text-primary me-2"></i>Antrian Persetujuan Biodata</h5>
+            <p class="emis-card-sub">Pengajuan perubahan data yang perlu diverifikasi</p>
+          </div>
+          <span class="emis-chip stat-glass" style="background:rgba(225,29,72,.2);border-color:rgba(225,29,72,.3);">
+            <i class="ti tabler-clock"></i> {{ $pendingApprovalsCount }} Pending
+          </span>
+        </div>
+        <div class="card-body">
+          <p>Terdapat <strong>{{ $pendingApprovalsCount }}</strong> pengajuan perubahan data dari Siswa atau Orang Tua yang memerlukan verifikasi.</p>
+          <div class="mt-4">
+            <a href="{{ route('sekolah.approval.antrian') }}" class="btn-emis-primary text-decoration-none">
+              <i class="ti tabler-eye"></i> Buka Antrian Verifikasi
+            </a>
           </div>
         </div>
-        <div class="d-none d-md-block pe-4">
-          <i class="icon-base ti tabler-device-dashboard text-primary opacity-50" style="font-size: 4rem !important;"></i>
+      </div>
+    </div>
+
+    {{-- Right: School Quick Info --}}
+    <div class="col-md-4">
+      @php
+        $sekolahDefault = auth()->user()->sekolah ?: \App\Models\Sekolah::first();
+      @endphp
+      <div class="card h-100 emis-fade-up delay-7">
+        <div class="card-header">
+          <h5 class="emis-card-title"><i class="ti tabler-school me-2"></i>Detail Madrasah</h5>
+          <p class="emis-card-sub">Informasi madrasah utama</p>
+        </div>
+        <div class="card-body">
+          @if($sekolahDefault)
+            <div class="text-center mb-3">
+              <div class="school-badge-icon">
+                <i class="ti tabler-building-fortress"></i>
+              </div>
+              <h6 style="font-size:.9375rem;font-weight:700;color:var(--emis-text-head);margin-bottom:.4rem;">{{ $sekolahDefault->nama }}</h6>
+              <span style="font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--emis-slate);background:var(--emis-surface);border:1px solid var(--emis-border);padding:.25rem .75rem;border-radius:100px;">NPSN: {{ $sekolahDefault->npsn }}</span>
+            </div>
+            <div class="school-info-row">
+              <div class="school-info-icon"><i class="ti tabler-map-pin"></i></div>
+              <div>
+                <div class="school-info-label">Alamat</div>
+                <div class="school-info-val">{{ $sekolahDefault->alamat }}</div>
+              </div>
+            </div>
+            <div class="school-info-row">
+              <div class="school-info-icon"><i class="ti tabler-phone"></i></div>
+              <div>
+                <div class="school-info-label">Kontak</div>
+                <div class="school-info-val">{{ $sekolahDefault->kontak }}</div>
+              </div>
+            </div>
+            <div class="school-info-row">
+              <div class="school-info-icon"><i class="ti tabler-mail"></i></div>
+              <div>
+                <div class="school-info-label">Email</div>
+                <div class="school-info-val">{{ $sekolahDefault->email }}</div>
+              </div>
+            </div>
+          @else
+            <div class="emis-empty">
+              <i class="ti tabler-building-off"></i>
+              <p>Data madrasah belum tersedia.</p>
+            </div>
+          @endif
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {{-- ============================================ --}}
+  {{-- ROW 3: Informasi & Pengumuman               --}}
+  {{-- ============================================ --}}
+  <p class="emis-section-label emis-fade-up delay-7">Informasi & Pengumuman</p>
+
+  <div class="row g-4 emis-fade-up delay-8">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body">
+          <ul class="list-unstyled mb-0">
+            <li class="d-flex mb-4">
+              <div class="school-info-icon me-3">
+                <i class="ti tabler-news"></i>
+              </div>
+              <div>
+                <h6 class="fw-semibold mb-1" style="color:var(--emis-text-head);">Pembaruan Sistem Aplikasi EMIS Lokal v2.0</h6>
+                <p class="mb-0" style="font-size:.8125rem;color:var(--emis-text-body);">Integrasi database remote, integrasi role-based sidebar, dan fitur pengajuan mandiri biodata siswa telah aktif.</p>
+                <small style="color:var(--emis-text-muted);">22 Mei 2026</small>
+              </div>
+            </li>
+            <li class="d-flex">
+              <div class="school-info-icon me-3">
+                <i class="ti tabler-alert-triangle"></i>
+              </div>
+              <div>
+                <h6 class="fw-semibold mb-1" style="color:var(--emis-text-head);">Sinkronisasi Data Tahun Ajaran 2025/2026</h6>
+                <p class="mb-0" style="font-size:.8125rem;color:var(--emis-text-body);">Pastikan data kelas, jurusan, dan siswa pada Semester Ganjil 2025/2026 telah sesuai sebelum laporan dinas ditarik.</p>
+                <small style="color:var(--emis-text-muted);">20 Mei 2026</small>
+              </div>
+            </li>
+          </ul>
         </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Stats Row -->
-<div class="row g-6 mb-6">
-  <div class="col-sm-6 col-xl-3">
-    <div class="card shadow-sm border-0 h-100">
-      <div class="card-body d-flex justify-content-between align-items-center">
-        <div>
-          <p class="mb-1 text-muted">Total Siswa</p>
-          <h3 class="mb-0 fw-bold">{{ $stats['total_siswa'] }}</h3>
-        </div>
-        <div class="avatar bg-light-primary rounded p-2">
-          <span class="avatar-initial rounded bg-label-primary"><i class="icon-base ti tabler-user fs-4"></i></span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-sm-6 col-xl-3">
-    <div class="card shadow-sm border-0 h-100">
-      <div class="card-body d-flex justify-content-between align-items-center">
-        <div>
-          <p class="mb-1 text-muted">Total Guru</p>
-          <h3 class="mb-0 fw-bold">{{ $stats['total_guru'] }}</h3>
-        </div>
-        <div class="avatar bg-light-success rounded p-2">
-          <span class="avatar-initial rounded bg-label-success"><i class="icon-base ti tabler-users fs-4"></i></span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-sm-6 col-xl-3">
-    <div class="card shadow-sm border-0 h-100">
-      <div class="card-body d-flex justify-content-between align-items-center">
-        <div>
-          <p class="mb-1 text-muted">Total Sekolah</p>
-          <h3 class="mb-0 fw-bold">{{ $stats['total_sekolah'] }}</h3>
-        </div>
-        <div class="avatar bg-light-info rounded p-2">
-          <span class="avatar-initial rounded bg-label-info"><i class="icon-base ti tabler-school fs-4"></i></span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-sm-6 col-xl-3">
-    <div class="card shadow-sm border-0 h-100">
-      <div class="card-body d-flex justify-content-between align-items-center">
-        <div>
-          <p class="mb-1 text-muted">Total Kelas</p>
-          <h3 class="mb-0 fw-bold">{{ $stats['total_kelas'] }}</h3>
-        </div>
-        <div class="avatar bg-light-warning rounded p-2">
-          <span class="avatar-initial rounded bg-label-warning"><i class="icon-base ti tabler-door-enter fs-4"></i></span>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="row g-6">
-  <!-- Left Side: Role Specific Features -->
-  <div class="col-md-8">
-    <!-- Operator / Admin Queue Summary -->
-    <div class="card border-0 shadow-sm mb-6">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0 fw-semibold"><i class="icon-base ti tabler-checklist text-primary me-2"></i>Antrian Persetujuan Biodata</h5>
-        <span class="badge bg-danger rounded-pill">{{ $pendingApprovalsCount }} Pending</span>
-      </div>
-      <div class="card-body">
-        <p>Terdapat <strong>{{ $pendingApprovalsCount }}</strong> pengajuan perubahan data dari Siswa atau Orang Tua yang memerlukan verifikasi.</p>
-        <div class="mt-4">
-          <a href="{{ route('sekolah.approval.antrian') }}" class="btn btn-primary">
-            <i class="icon-base ti tabler-eye me-1"></i> Buka Antrian Verifikasi
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <!-- Information Card -->
-    <div class="card border-0 shadow-sm">
-      <div class="card-header">
-        <h5 class="mb-0 fw-semibold"><i class="icon-base ti tabler-info-circle text-primary me-2"></i>Informasi & Pengumuman</h5>
-      </div>
-      <div class="card-body">
-        <ul class="list-unstyled mb-0">
-          <li class="d-flex mb-4">
-            <div class="avatar me-3">
-              <span class="avatar-initial rounded bg-label-info"><i class="icon-base ti tabler-news"></i></span>
-            </div>
-            <div>
-              <h6 class="mb-1 fw-semibold text-heading">Pembaruan Sistem Aplikasi EMIS Lokal v2.0</h6>
-              <p class="mb-0 text-muted">Integrasi database remote, integrasi role-based sidebar, dan fitur pengajuan mandiri biodata siswa telah aktif.</p>
-              <small class="text-body-secondary">22 Mei 2026</small>
-            </div>
-          </li>
-          <li class="d-flex">
-            <div class="avatar me-3">
-              <span class="avatar-initial rounded bg-label-warning"><i class="icon-base ti tabler-alert-triangle"></i></span>
-            </div>
-            <div>
-              <h6 class="mb-1 fw-semibold text-heading">Sinkronisasi Data Tahun Ajaran 2025/2026</h6>
-              <p class="mb-0 text-muted">Pastikan data kelas, jurusan, dan siswa pada Semester Ganjil 2025/2026 telah sesuai sebelum laporan dinas ditarik.</p>
-              <small class="text-body-secondary">20 Mei 2026</small>
-            </div>
-          </li>
-        </ul>
-      </div>
-    </div>
-  </div>
-
-  <!-- Right Side: School Quick Info -->
-  <div class="col-md-4">
-    <div class="card border-0 shadow-sm mb-6">
-      <div class="card-header">
-        <h5 class="mb-0 fw-semibold"><i class="icon-base ti tabler-school text-primary me-2"></i>Detail Madrasah</h5>
-      </div>
-      <div class="card-body">
-        @php
-          $sekolahDefault = auth()->user()->sekolah ?: \App\Models\Sekolah::first();
-        @endphp
-        @if($sekolahDefault)
-          <div class="d-flex flex-column align-items-center text-center mb-4">
-            <div class="p-3 bg-label-primary rounded-circle mb-3">
-              <i class="icon-base ti tabler-building-fortress text-primary" style="font-size: 2.5rem;"></i>
-            </div>
-            <h5 class="mb-1 fw-bold text-heading">{{ $sekolahDefault->nama }}</h5>
-            <span class="badge bg-label-primary">NPSN: {{ $sekolahDefault->npsn }}</span>
-          </div>
-
-          <hr class="my-4">
-
-          <div class="d-flex mb-3">
-            <div class="me-3"><i class="icon-base ti tabler-map-pin text-primary"></i></div>
-            <div>
-              <h6 class="mb-0 text-heading">Alamat</h6>
-              <small class="text-muted">{{ $sekolahDefault->alamat }}</small>
-            </div>
-          </div>
-
-          <div class="d-flex mb-3">
-            <div class="me-3"><i class="icon-base ti tabler-phone text-primary"></i></div>
-            <div>
-              <h6 class="mb-0 text-heading">Kontak</h6>
-              <small class="text-muted">{{ $sekolahDefault->kontak }}</small>
-            </div>
-          </div>
-
-          <div class="d-flex">
-            <div class="me-3"><i class="icon-base ti tabler-mail text-primary"></i></div>
-            <div>
-              <h6 class="mb-0 text-heading">Email</h6>
-              <small class="text-muted">{{ $sekolahDefault->email }}</small>
-            </div>
-          </div>
-        @else
-          <p class="text-muted text-center">Data madrasah belum tersedia.</p>
-        @endif
-      </div>
-    </div>
-  </div>
-</div>
 @endsection
